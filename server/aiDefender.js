@@ -22,13 +22,14 @@ function trackAnomaly(ip, reqPath) {
 /**
  * Active AI Defender Middleware
  * 
- * Runs before every other middleware.  Three layers of defence:
- *  1. Hard-banned IPs → immediate 403
- *  2. SQL-injection / XSS payload detection → ban + 403
- *  3. Recon / directory-brute-force path detection → progressive ban
+ * Runs before every other middleware. Three layers of defence:
+ *  1. Hard-banned IPs -> immediate 403
+ *  2. SQL-injection / XSS payload detection -> ban + 403
+ *  3. Recon / directory-brute-force path detection -> progressive ban
  */
 const activeDefender = (req, res, next) => {
     const clientIP = (req.ip || req.connection.remoteAddress || '').replace(/^::ffff:/, '');
+    const isLocal = clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === 'localhost';
 
     // Layer 1 – Already banned
     if (bannedIPs.has(clientIP)) {
@@ -38,8 +39,8 @@ const activeDefender = (req, res, next) => {
     // Layer 2 – Malicious payload detection (SQL Injection / XSS)
     const payload = JSON.stringify(req.query) + JSON.stringify(req.body || {});
     if (SQL_XSS_PATTERN.test(payload)) {
-        bannedIPs.add(clientIP);
-        console.warn(`[AI DEFENSE] 🔴 Malicious payload blocked and ${clientIP} banned.`);
+        if (!isLocal) bannedIPs.add(clientIP);
+        console.warn(`[AI DEFENSE] 🔴 Malicious payload blocked ${!isLocal ? 'and ' + clientIP + ' banned' : '(local)'}.`);
         return res.status(403).json({ error: 'Malicious payload detected. Access revoked.' });
     }
 
@@ -49,9 +50,9 @@ const activeDefender = (req, res, next) => {
         const anomalyData = requestAnomalies.get(clientIP);
 
         if (anomalyData.count >= 3) {
-            bannedIPs.add(clientIP);
-            console.warn(`[AI DEFENSE] 🔴 Recon behaviour detected – ${clientIP} permanently banned after ${anomalyData.count} suspicious requests.`);
-            return res.status(403).json({ error: 'Anomalous behaviour detected. Access revoked.' });
+            if (!isLocal) bannedIPs.add(clientIP);
+            console.warn(`[AI DEFENSE] 🔴 Recon behavior detected – ${clientIP} ${!isLocal ? 'permanently banned' : '(local lockout)'} after ${anomalyData.count} suspicious requests.`);
+            return res.status(403).json({ error: 'Anomalous behavior detected. Access revoked.' });
         }
 
         console.warn(`[AI DEFENSE] ⚠️  Suspicious path access from ${clientIP}: ${req.path} (${anomalyData.count}/3)`);

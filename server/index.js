@@ -49,19 +49,34 @@ const dbPath = path.join(__dirname, 'etherlens.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
-db.exec(`
-    CREATE TABLE IF NOT EXISTS hosts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ip_address TEXT,
-        port INTEGER,
-        banner TEXT,
-        device_type TEXT,
-        risk_level TEXT,
-        country TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(ip_address, port)
-    )
-`);
+// Ensure schema exists and handles migrations
+try {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS hosts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address TEXT,
+            port INTEGER,
+            banner TEXT,
+            device_type TEXT,
+            risk_level TEXT,
+            country TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(ip_address, port)
+        )
+    `);
+
+    // Add columns if they are missing from older versions
+    const tableInfo = db.prepare('PRAGMA table_info(hosts)').all();
+    const columns = tableInfo.map(c => c.name);
+
+    if (!columns.includes('device_type')) db.prepare('ALTER TABLE hosts ADD COLUMN device_type TEXT').run();
+    if (!columns.includes('risk_level')) db.prepare('ALTER TABLE hosts ADD COLUMN risk_level TEXT').run();
+    if (!columns.includes('country')) db.prepare('ALTER TABLE hosts ADD COLUMN country TEXT').run();
+
+    console.log('[*] Database schema verified & migrated.');
+} catch (e) {
+    console.error('[!] Database Init Error:', e.message);
+}
 
 // --- IN-MEMORY CACHE ---
 const queryCache = new LRUCache({ max: 50, ttl: 1000 * 5 });
@@ -114,8 +129,8 @@ app.get('/api/search', requireApiKey, (req, res) => {
         queryCache.set(cacheKey, response);
         res.json(response);
     } catch (e) {
-        console.error('[Search Error]', e.message);
-        res.status(500).json({ error: 'Search failed.' });
+        console.error('[Search Error]', e);
+        res.status(500).json({ error: 'Search failed.', detail: e.message });
     }
 });
 
@@ -133,8 +148,8 @@ app.get('/api/stats', requireApiKey, (req, res) => {
         queryCache.set('stats', response);
         res.json(response);
     } catch (e) {
-        console.error('[Stats Error]', e.message);
-        res.status(500).json({ error: 'Stats retrieval failed.' });
+        console.error('[Stats Error]', e);
+        res.status(500).json({ error: 'Stats retrieval failed.', detail: e.message });
     }
 });
 

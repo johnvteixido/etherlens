@@ -82,19 +82,23 @@ async function run() {
     // ── Stats ────────────────────────────────────────────────────────────────
     await test('GET /api/stats returns expected shape', async () => {
         const r = await request('/api/stats');
-        assert.ok('total_hosts' in r.body || 'notice' in r.body, 'missing total_hosts or notice');
+        if (r.status !== 200) throw new Error(`Status ${r.status}: ${JSON.stringify(r.body)}`);
+        assert.ok('total_hosts' in r.body, 'missing total_hosts');
+        assert.ok(Array.isArray(r.body.top_ports), 'top_ports is not an array');
     });
 
     // ── Search ───────────────────────────────────────────────────────────────
     await test('GET /api/search returns matches array', async () => {
         const r = await request('/api/search?q=');
+        if (r.status !== 200) throw new Error(`Status ${r.status}: ${JSON.stringify(r.body)}`);
         assert.ok(Array.isArray(r.body.matches), 'matches is not an array');
     });
 
     // ── AI Insights ──────────────────────────────────────────────────────────
     await test('GET /api/ai/insights returns categories array', async () => {
         const r = await request('/api/ai/insights');
-        assert.ok(Array.isArray(r.body.categories) || 'notice' in r.body);
+        if (r.status !== 200) throw new Error(`Status ${r.status}: ${JSON.stringify(r.body)}`);
+        assert.ok(Array.isArray(r.body.categories), 'categories is not an array');
     });
 
     // ── Security Status ──────────────────────────────────────────────────────
