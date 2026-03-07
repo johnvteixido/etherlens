@@ -92,25 +92,27 @@ function scanTarget(ip, port) {
 
         socket.on('connect', () => {
             if (port === 80 || port === 443 || port === 8080) {
-                socket.write('HEAD / HTTP/1.0\\r\\nUser-Agent: EtherLens-Scanner/1.0\\r\\n\\r\\n');
+                socket.write('HEAD / HTTP/1.0\r\nUser-Agent: EtherLens-Scanner/1.0\r\n\r\n');
             }
         });
 
         socket.on('data', (data) => {
             banner += data.toString().substring(0, 512);
+            if (banner.length >= 512) cleanup();
+        });
 
-            const randomCountry = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
-            const finalBanner = banner.trim();
+        socket.on('end', () => {
+            if (banner) {
+                const randomCountry = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+                const finalBanner = banner.trim();
+                const aiResult = classifyBanner(finalBanner);
 
-            // Invoke local AI for analysis
-            const aiResult = classifyBanner(finalBanner);
-
-            try {
-                // Execute optimized insert using the new schema
-                insertHost.run(ip, port, finalBanner, randomCountry, aiResult.category, aiResult.risk);
-                console.log(`[+] Discovered: ${ip}:${port} (${randomCountry}) | Type: ${aiResult.category} | Risk: ${aiResult.risk}`);
-            } catch (e) {
-                // Ignore silent db constraint errors
+                try {
+                    insertHost.run(ip, port, finalBanner, randomCountry, aiResult.category, aiResult.risk);
+                    console.log(`[+] Discovered: ${ip}:${port} (${randomCountry}) | Type: ${aiResult.category} | Risk: ${aiResult.risk}`);
+                } catch (e) {
+                    // Ignore silent db constraint errors
+                }
             }
             cleanup();
         });

@@ -185,6 +185,8 @@ app.use((err, _req, res, _next) => {
     res.status(500).json({ error: 'Internal server error.' });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-    console.log(`[*] Secured EtherLens API listening on 127.0.0.1:${PORT}`);
+const BIND_ADDRESS = process.env.BIND_ADDRESS || '127.0.0.1';
+
+app.listen(PORT, BIND_ADDRESS, () => {
+    console.log(`[*] Secured EtherLens API listening on ${BIND_ADDRESS}:${PORT}`);
 });

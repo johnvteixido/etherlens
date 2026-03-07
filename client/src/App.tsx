@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { Search, Server, Activity, Globe, ShieldAlert, Cpu } from 'lucide-react'
 import './App.css'
@@ -14,54 +14,75 @@ interface Host {
   timestamp: string
 }
 
+interface StatItem {
+  port?: number
+  country?: string
+  risk_level?: string
+  count: number
+}
+
+interface StatsData {
+  total_hosts: number
+  top_ports: StatItem[]
+  top_countries: StatItem[]
+  risk_levels: StatItem[]
+}
+
+interface InsightsData {
+  categories: Array<{ device_type: string, count: number }>
+  high_risk_hosts: Partial<Host>[]
+}
+
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const API_KEY = (import.meta as any).env?.VITE_API_KEY || 'etherlens_admin'
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: API_BASE_URL,
   headers: {
-    'x-api-key': 'etherlens_admin'
+    'x-api-key': API_KEY
   }
 })
 
 function App() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Host[]>([])
-  const [stats, setStats] = useState({ total_hosts: 0, top_ports: [], top_countries: [], risk_levels: [] })
-  const [insights, setInsights] = useState({ categories: [], high_risk_hosts: [] })
+  const [stats, setStats] = useState<StatsData>({ total_hosts: 0, top_ports: [], top_countries: [], risk_levels: [] })
+  const [insights, setInsights] = useState<InsightsData>({ categories: [], high_risk_hosts: [] })
   const [loading, setLoading] = useState(false)
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('online')
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await apiClient.get('/stats')
       if (res.data) {
         setStats(res.data)
         setApiStatus('online')
       }
-    } catch (err) {
-      console.error("Stats fetch error")
+    } catch {
       setApiStatus('offline')
     }
-  }
+  }, [])
 
-  const fetchInsights = async () => {
+  const fetchInsights = useCallback(async () => {
     try {
       const res = await apiClient.get('/ai/insights')
       if (res.data) setInsights(res.data)
     } catch (err) {
-      console.error("Insights fetch error")
+      console.error("Insights fetch error", err)
     }
-  }
+  }, [])
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const handleSearch = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setLoading(true)
     try {
       const res = await apiClient.get(`/search?q=${encodeURIComponent(query)}`)
       setResults(res.data.matches || [])
     } catch (err) {
-      console.error(err)
+      console.error("Search error", err)
     }
     setLoading(false)
-  }
+  }, [query])
 
   // Initial load
   useEffect(() => {
@@ -76,7 +97,7 @@ function App() {
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchStats, fetchInsights, handleSearch])
 
   return (
     <div className="app-container">
@@ -136,7 +157,7 @@ function App() {
             <div className="stat-card glass-panel flex-col">
               <h3><Cpu size={16} className="neon-text-magenta" /> AI Categories</h3>
               <ul className="stat-list">
-                {insights.categories?.map((c: any) => (
+                {insights.categories?.map((c) => (
                   <li key={c.device_type}>
                     <span>{c.device_type}</span>
                     <span className="count">{c.count}</span>
@@ -148,7 +169,7 @@ function App() {
             <div className="stat-card glass-panel flex-col">
               <h3>Risk Levels</h3>
               <ul className="stat-list">
-                {stats.risk_levels?.map((r: any) => (
+                {stats.risk_levels?.map((r) => (
                   <li key={r.risk_level}>
                     <span className={r.risk_level === 'High' || r.risk_level === 'Critical' ? 'neon-text-magenta' : ''}>
                       {r.risk_level}
@@ -162,7 +183,7 @@ function App() {
             <div className="stat-card glass-panel flex-col">
               <h3>Top Ports</h3>
               <ul className="stat-list">
-                {stats.top_ports?.map((p: any) => (
+                {stats.top_ports?.map((p) => (
                   <li key={p.port}>
                     <span>{p.port}</span>
                     <span className="count">{p.count}</span>
