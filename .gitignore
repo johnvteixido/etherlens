@@ -24,3 +24,13 @@ server/etherlens.db-journal
 # OS files
 .DS_Store
 Thumbs.db
+
+# SQLite WAL sidecars
+server/etherlens.db-shm
+server/etherlens.db-wal
+
+# Docker volume data
+data/
+
+# Test output
+coverage/

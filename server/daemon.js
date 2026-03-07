@@ -38,10 +38,12 @@ const insertHost = db.prepare(`
         timestamp=CURRENT_TIMESTAMP
 `);
 
-// --- CONFIGURATION ---
-const TARGET_PORTS = [22, 80, 443, 21, 3389, 8080];
-const CONCURRENCY_LIMIT = 200; // Increased concurrency for speed
-const TIMEOUT_MS = 2000;
+// --- CONFIGURATION (override via env vars) ---
+const TARGET_PORTS = process.env.TARGET_PORTS
+    ? process.env.TARGET_PORTS.split(',').map(Number)
+    : [22, 80, 443, 21, 3389, 8080];
+const CONCURRENCY_LIMIT = parseInt(process.env.CONCURRENCY_LIMIT || '200', 10);
+const TIMEOUT_MS = parseInt(process.env.SCAN_TIMEOUT_MS || '2000', 10);
 
 // Default Bogon space
 const BOGON_RANGES = [

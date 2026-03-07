@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: etherlens-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - API_KEY=${API_KEY:-etherlens_admin}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173}
+    volumes:
+      # Persist the SQLite database between container restarts
+      - etherlens-db:/app/data
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3001/healthz" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - etherlens-net
+
+  daemon:
+    build: .
+    container_name: etherlens-daemon
+    restart: unless-stopped
+    command: node daemon.js
+    environment:
+      - CONCURRENCY_LIMIT=${CONCURRENCY_LIMIT:-200}
+      - SCAN_TIMEOUT_MS=${SCAN_TIMEOUT_MS:-2000}
+    volumes:
+      - etherlens-db:/app/data
+    networks:
+      - etherlens-net
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  etherlens-db:
+
+
+networks:
+  etherlens-net:
+    driver: bridge

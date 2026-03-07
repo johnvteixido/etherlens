@@ -154,6 +154,9 @@ app.get('/api/ai/insights', requireApiKey, (req, res) => {
 // GET /api/security/status  (admin view of live AI defense state)
 app.get('/api/security/status', requireApiKey, securityStatusHandler);
 
+// GET /healthz — unauthenticated, used by Docker HEALTHCHECK and load balancers
+app.get('/healthz', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
+
 // --- CATCH-ALL: return JSON 404, never expose Express default HTML page ---
 app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
 

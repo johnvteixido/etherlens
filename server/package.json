@@ -1,15 +1,52 @@
 {
-  "name": "server",
+  "name": "@johnvteixido/etherlens",
   "version": "1.0.0",
-  "description": "",
+  "description": "An open-source, MIT-licensed alternative to Shodan.io — autonomously scans and catalogs internet-connected devices with AI-powered banner classification, risk scoring, and a live REST API.",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "bin": {
+    "etherlens-daemon": "./daemon.js",
+    "etherlens-api": "./index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "scripts": {
+    "start": "node index.js",
+    "daemon": "node daemon.js",
+    "dev": "node --watch index.js",
+    "test": "node test/api.test.js"
+  },
+  "keywords": [
+    "shodan",
+    "network-scanner",
+    "osint",
+    "cybersecurity",
+    "port-scanner",
+    "internet-of-things",
+    "ai-ml",
+    "banner-grabbing",
+    "sqlite",
+    "express"
+  ],
+  "author": "John Teixido <johnvteixido@github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnvteixido/etherlens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johnvteixido/etherlens/issues"
+  },
+  "homepage": "https://github.com/johnvteixido/etherlens#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "type": "commonjs",
+  "files": [
+    "index.js",
+    "daemon.js",
+    "aiAnalyzer.js",
+    "aiDefender.js",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
