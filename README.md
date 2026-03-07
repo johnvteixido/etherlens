@@ -92,3 +92,17 @@ Please use our [Issue Tracker](https://github.com/johnvteixido/etherlens/issues)
 ## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+
+## 
+
+## Active AI Defense
+EtherLens features a unique "Active AI Defender" module that monitors performance and security live:
+- **Real-time Threat Neutralization**: Automatically detects and blocks SQLi, XSS, and reconnaissance patterns.
+- - **AI-Powered Banner Classification**: Uses Naive Bayes to classify device services and assess risk scores.
+  - - **Adaptive Rate Limiting**: Dynamically adjusts API throughput based on detected usage patterns.
+   
+    - ## Roadmap
+    - - [ ] **v1.1.0**: Integration with advanced AI models for vulnerability inference.
+      - [ ] - [ ] **v1.2.0**: Native support for more protocols (SNMP, Telnet, Redis).
+      - [ ] - [ ] **v2.0.0**: Distributed scanning nodes with centralized mesh control.
