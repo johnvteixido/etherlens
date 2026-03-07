@@ -26,6 +26,55 @@
   letter-spacing: 1px;
 }
 
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-left: 1rem;
+}
+
+.status-pill.online {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 240, 255, 0.3);
+}
+
+.status-pill.offline {
+  color: var(--accent-magenta);
+  border-color: rgba(255, 0, 60, 0.3);
+}
+
+.status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 5px currentColor;
+}
+
+.status-pill.online .dot {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
 .nav-links a {
   color: var(--text-primary);
   text-decoration: none;

@@ -27,13 +27,18 @@ function App() {
   const [stats, setStats] = useState({ total_hosts: 0, top_ports: [], top_countries: [], risk_levels: [] })
   const [insights, setInsights] = useState({ categories: [], high_risk_hosts: [] })
   const [loading, setLoading] = useState(false)
+  const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('online')
 
   const fetchStats = async () => {
     try {
       const res = await apiClient.get('/stats')
-      if (res.data) setStats(res.data)
+      if (res.data) {
+        setStats(res.data)
+        setApiStatus('online')
+      }
     } catch (err) {
       console.error("Stats fetch error")
+      setApiStatus('offline')
     }
   }
 
@@ -80,6 +85,9 @@ function App() {
         <div className="logo">
           <Globe className="icon neon-text-cyan" />
           <span className="brand">Ether<span className="neon-text-cyan">Lens</span></span>
+          <div className={`status-pill ${apiStatus}`}>
+            <div className="dot"></div> {apiStatus.toUpperCase()}
+          </div>
         </div>
         <div className="nav-links">
           <a href="#">Explore</a>

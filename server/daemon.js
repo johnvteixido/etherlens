@@ -12,9 +12,8 @@ const db = new Database(dbPath);
 // Enable WAL for blazing fast, highly concurrent writes
 db.pragma('journal_mode = WAL');
 
-// Initialize schema - dropping old for development/upgrade
+// Initialize schema (Safe migration approach)
 db.exec(`
-    DROP TABLE IF EXISTS hosts;
     CREATE TABLE IF NOT EXISTS hosts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ip_address TEXT,
@@ -98,7 +97,7 @@ function scanTarget(ip, port) {
         });
 
         socket.on('data', (data) => {
-            banner += data.toString().substring(0, 200);
+            banner += data.toString().substring(0, 512);
 
             const randomCountry = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
             const finalBanner = banner.trim();
