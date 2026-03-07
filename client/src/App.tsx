@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Search, Server, Activity, Globe, ShieldAlert } from 'lucide-react'
+import { Search, Server, Activity, Globe, ShieldAlert, Cpu } from 'lucide-react'
 import './App.css'
 
 interface Host {
@@ -9,21 +9,40 @@ interface Host {
   port: number
   banner: string
   country: string
+  device_type: string
+  risk_level: string
   timestamp: string
 }
+
+const apiClient = axios.create({
+  baseURL: 'http://localhost:3001/api',
+  headers: {
+    'x-api-key': 'etherlens_admin'
+  }
+})
 
 function App() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Host[]>([])
-  const [stats, setStats] = useState({ total_hosts: 0, top_ports: [], top_countries: [] })
+  const [stats, setStats] = useState({ total_hosts: 0, top_ports: [], top_countries: [], risk_levels: [] })
+  const [insights, setInsights] = useState({ categories: [], high_risk_hosts: [] })
   const [loading, setLoading] = useState(false)
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/api/stats')
-      setStats(res.data)
+      const res = await apiClient.get('/stats')
+      if (res.data) setStats(res.data)
     } catch (err) {
-      console.error("Backend offline or error fetching stats")
+      console.error("Stats fetch error")
+    }
+  }
+
+  const fetchInsights = async () => {
+    try {
+      const res = await apiClient.get('/ai/insights')
+      if (res.data) setInsights(res.data)
+    } catch (err) {
+      console.error("Insights fetch error")
     }
   }
 
@@ -31,8 +50,8 @@ function App() {
     if (e) e.preventDefault()
     setLoading(true)
     try {
-      const res = await axios.get(`http://localhost:3001/api/search?q=${encodeURIComponent(query)}`)
-      setResults(res.data.matches)
+      const res = await apiClient.get(`/search?q=${encodeURIComponent(query)}`)
+      setResults(res.data.matches || [])
     } catch (err) {
       console.error(err)
     }
@@ -42,9 +61,15 @@ function App() {
   // Initial load
   useEffect(() => {
     fetchStats()
+    fetchInsights()
     handleSearch()
+
     // Poll stats every 5s to show live daemon progress
-    const interval = setInterval(fetchStats, 5000)
+    const interval = setInterval(() => {
+      fetchStats()
+      fetchInsights()
+    }, 5000)
+
     return () => clearInterval(interval)
   }, [])
 
@@ -75,7 +100,7 @@ function App() {
             <input
               type="text"
               className="search-input"
-              placeholder="Search e.g. port:22 country:UK apache..."
+              placeholder="Search e.g. port:22 type:Router apache..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -85,7 +110,7 @@ function App() {
           <div className="search-hints">
             <span>Try:</span>
             <button onClick={() => setQuery('port:22')}>port:22</button>
-            <button onClick={() => setQuery('country:USA')}>country:USA</button>
+            <button onClick={() => setQuery('type:Web Server')}>type:Web Server</button>
             <button onClick={() => setQuery('nginx')}>nginx</button>
           </div>
         </section>
@@ -96,29 +121,43 @@ function App() {
           <aside className="sidebar">
             <div className="stat-card glass-panel">
               <h3><Activity size={16} /> Live Index</h3>
-              <div className="stat-value neon-text-cyan">{stats.total_hosts.toLocaleString()}</div>
+              <div className="stat-value neon-text-cyan">{stats.total_hosts?.toLocaleString() || 0}</div>
               <div className="stat-label">Nodes Indexed</div>
             </div>
 
             <div className="stat-card glass-panel flex-col">
-              <h3>Top Ports</h3>
+              <h3><Cpu size={16} className="neon-text-magenta" /> AI Categories</h3>
               <ul className="stat-list">
-                {stats.top_ports.map((p: any) => (
-                  <li key={p.port}>
-                    <span>{p.port}</span>
-                    <span className="count">{p.count}</span>
+                {insights.categories?.map((c: any) => (
+                  <li key={c.device_type}>
+                    <span>{c.device_type}</span>
+                    <span className="count">{c.count}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
             <div className="stat-card glass-panel flex-col">
-              <h3>Top Countries</h3>
+              <h3>Risk Levels</h3>
               <ul className="stat-list">
-                {stats.top_countries.map((c: any) => (
-                  <li key={c.country}>
-                    <span>{c.country}</span>
-                    <span className="count">{c.count}</span>
+                {stats.risk_levels?.map((r: any) => (
+                  <li key={r.risk_level}>
+                    <span className={r.risk_level === 'High' || r.risk_level === 'Critical' ? 'neon-text-magenta' : ''}>
+                      {r.risk_level}
+                    </span>
+                    <span className="count">{r.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="stat-card glass-panel flex-col">
+              <h3>Top Ports</h3>
+              <ul className="stat-list">
+                {stats.top_ports?.map((p: any) => (
+                  <li key={p.port}>
+                    <span>{p.port}</span>
+                    <span className="count">{p.count}</span>
                   </li>
                 ))}
               </ul>
@@ -145,6 +184,10 @@ function App() {
                     <div key={host.id} className="host-card glass-panel">
                       <div className="host-header">
                         <div className="host-ip">{host.ip_address}</div>
+                        <div className="host-badges">
+                          <span className="badge category-badge">{host.device_type}</span>
+                          <span className={`badge risk-badge risk-${host.risk_level?.toLowerCase()}`}>{host.risk_level} Risk</span>
+                        </div>
                         <div className="host-country">{host.country}</div>
                       </div>
                       <div className="host-details">
