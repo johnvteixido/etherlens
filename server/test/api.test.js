@@ -111,12 +111,13 @@ async function run() {
 
     // ── AI Defender: SQLi ────────────────────────────────────────────────────
     await test('SQL injection payload is blocked (403)', async () => {
+        const payload = encodeURIComponent("' UNION SELECT 1,2,3--");
         const r = await new Promise((resolve, reject) => {
             http.get(
                 {
                     hostname: '127.0.0.1',
                     port: PORT,
-                    path: "/api/search?q=' UNION SELECT 1,2,3--",
+                    path: `/api/search?q=${payload}`,
                     headers: { 'x-api-key': API_KEY },
                 },
                 (res) => {

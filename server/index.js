@@ -12,15 +12,15 @@ const { activeDefender, securityStatusHandler } = require('./aiDefender');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// --- SECURE MIDDLEWARE (order matters) ---
+// --- SECURE MIDDLEWARE ---
 
-// 1. Live AI Defense – must run before everything else
+// 1. Live AI Defense
 app.use(activeDefender);
 
 // 2. Security headers
 app.use(helmet());
 
-// 3. Strict CORS – only allow the local frontend (or configure via env)
+// 3. Strict CORS
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',');
 app.use(cors({
     origin: (origin, callback) => {
@@ -31,10 +31,10 @@ app.use(cors({
     allowedHeaders: ['x-api-key', 'Content-Type'],
 }));
 
-// 4. Body parser (limit payload size to prevent JSON bombs)
+// 4. Body parser
 app.use(express.json({ limit: '10kb' }));
 
-// 5. Rate limiting – per IP, per 15-min window
+// 5. Rate limiting
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -44,17 +44,26 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// --- DATABASE (read-only API mode) ---
+// --- DATABASE (Self-initializing) ---
 const dbPath = path.join(__dirname, 'etherlens.db');
-let db;
-try {
-    db = new Database(dbPath, { readonly: true });
-    db.pragma('journal_mode = WAL');
-} catch (_) {
-    db = null; // daemon not yet started; all DB routes will return a graceful notice
-}
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
 
-// --- IN-MEMORY CACHE (5-second TTL) ---
+db.exec(`
+    CREATE TABLE IF NOT EXISTS hosts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        port INTEGER,
+        banner TEXT,
+        device_type TEXT,
+        risk_level TEXT,
+        country TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(ip_address, port)
+    )
+`);
+
+// --- IN-MEMORY CACHE ---
 const queryCache = new LRUCache({ max: 50, ttl: 1000 * 5 });
 
 // --- API KEY AUTHENTICATION ---
@@ -66,20 +75,6 @@ function requireApiKey(req, res, next) {
         return res.status(403).json({ error: 'Forbidden: invalid or missing API key.' });
     }
     next();
-}
-
-// --- SAFE DB HELPER ---
-function safeQuery(fn, res) {
-    try {
-        if (!db) return res.json({ notice: 'Database initializing – daemon not started yet.' });
-        return fn();
-    } catch (e) {
-        if (e.message.includes('no such table')) {
-            return res.json({ notice: 'Database initializing.' });
-        }
-        console.error('[API Error]', e.message); // log internally, never leak stack to client
-        return res.status(500).json({ error: 'Internal server error.' });
-    }
 }
 
 // --- SANITIZE QUERY INPUT ---
@@ -98,7 +93,7 @@ app.get('/api/search', requireApiKey, (req, res) => {
     const cacheKey = `search_${raw}`;
     if (queryCache.has(cacheKey)) return res.json(queryCache.get(cacheKey));
 
-    safeQuery(() => {
+    try {
         let sql = 'SELECT * FROM hosts WHERE 1=1';
         const params = [];
 
@@ -118,49 +113,58 @@ app.get('/api/search', requireApiKey, (req, res) => {
         const response = { matches: results, total: results.length, query: raw };
         queryCache.set(cacheKey, response);
         res.json(response);
-    }, res);
+    } catch (e) {
+        console.error('[Search Error]', e.message);
+        res.status(500).json({ error: 'Search failed.' });
+    }
 });
 
 // GET /api/stats
 app.get('/api/stats', requireApiKey, (req, res) => {
     if (queryCache.has('stats')) return res.json(queryCache.get('stats'));
 
-    safeQuery(() => {
+    try {
         const response = {
-            total_hosts: db.prepare('SELECT COUNT(*) as count FROM hosts').get().count,
+            total_hosts: db.prepare('SELECT COUNT(*) as count FROM hosts').get()?.count || 0,
             top_ports: db.prepare('SELECT port, COUNT(*) as count FROM hosts GROUP BY port ORDER BY count DESC LIMIT 5').all(),
             top_countries: db.prepare('SELECT country, COUNT(*) as count FROM hosts GROUP BY country ORDER BY count DESC LIMIT 5').all(),
             risk_levels: db.prepare('SELECT risk_level, COUNT(*) as count FROM hosts GROUP BY risk_level ORDER BY count DESC').all(),
         };
         queryCache.set('stats', response);
         res.json(response);
-    }, res);
+    } catch (e) {
+        console.error('[Stats Error]', e.message);
+        res.status(500).json({ error: 'Stats retrieval failed.' });
+    }
 });
 
 // GET /api/ai/insights
 app.get('/api/ai/insights', requireApiKey, (req, res) => {
     if (queryCache.has('ai_insights')) return res.json(queryCache.get('ai_insights'));
 
-    safeQuery(() => {
+    try {
         const response = {
             categories: db.prepare('SELECT device_type, COUNT(*) as count FROM hosts GROUP BY device_type ORDER BY count DESC LIMIT 10').all(),
             high_risk_hosts: db.prepare("SELECT ip_address, port, banner, device_type FROM hosts WHERE risk_level IN ('High','Critical') LIMIT 10").all(),
         };
         queryCache.set('ai_insights', response);
         res.json(response);
-    }, res);
+    } catch (e) {
+        console.error('[AI Insights Error]', e.message);
+        res.status(500).json({ error: 'Insights retrieval failed.' });
+    }
 });
 
-// GET /api/security/status  (admin view of live AI defense state)
+// GET /api/security/status (admin only)
 app.get('/api/security/status', requireApiKey, securityStatusHandler);
 
-// GET /healthz — unauthenticated, used by Docker HEALTHCHECK and load balancers
+// GET /healthz
 app.get('/healthz', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
-// --- CATCH-ALL: return JSON 404, never expose Express default HTML page ---
+// 404
 app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
 
-// --- GLOBAL ERROR HANDLER ---
+// Global error handler
 app.use((err, _req, res, _next) => {
     console.error('[Unhandled]', err.message);
     res.status(500).json({ error: 'Internal server error.' });
