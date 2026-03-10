@@ -35,7 +35,7 @@ async function run() {
     // Start the server
     server = spawn('node', [path.join(__dirname, '..', 'index.js')], {
         env: { ...process.env, PORT, API_KEY },
-        stdio: 'pipe',
+        stdio: 'inherit',
     });
     // Wait for it to be ready
     await new Promise((r) => setTimeout(r, 1000));

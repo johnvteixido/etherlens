@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { Search, Server, Activity, Globe, ShieldAlert, Cpu } from 'lucide-react'
@@ -33,7 +34,9 @@ interface InsightsData {
   high_risk_hosts: Partial<Host>[]
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:3001/api'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const API_KEY = (import.meta as any).env?.VITE_API_KEY || 'etherlens_admin'
 
 const apiClient = axios.create({
