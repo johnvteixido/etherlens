@@ -141,7 +141,7 @@ Copy `.env.example` to `.env` in the repo root (or `server/`) and set:
 
 | Variable | Default | Description |
 |---|---|---|
-| `API_KEY` | `etherlens_admin` | Shared secret for API access — **change this!** |
+| `API_KEY` | `etherlens_admin` | Shared secret for API access — **change this!** You can generate a secure one via: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"` |
 | `PORT` | `3001` | API server port |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins |
 | `CONCURRENCY_LIMIT` | `200` | Max concurrent scanner sockets |
