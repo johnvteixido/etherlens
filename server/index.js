@@ -8,6 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { LRUCache } = require('lru-cache');
 const { activeDefender, securityStatusHandler } = require('./aiDefender');
+const logger = require('./logger');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,9 +74,9 @@ try {
     if (!columns.includes('risk_level')) db.prepare('ALTER TABLE hosts ADD COLUMN risk_level TEXT').run();
     if (!columns.includes('country')) db.prepare('ALTER TABLE hosts ADD COLUMN country TEXT').run();
 
-    console.log('[*] Database schema verified & migrated.');
+    logger.info('Database schema verified & migrated.');
 } catch (e) {
-    console.error('[!] Database Init Error:', e.message);
+    logger.error(`Database Init Error: ${e.message}`);
 }
 
 // --- IN-MEMORY CACHE ---
@@ -129,7 +130,7 @@ app.get('/api/search', requireApiKey, (req, res) => {
         queryCache.set(cacheKey, response);
         res.json(response);
     } catch (e) {
-        console.error('[Search Error]', e);
+        logger.error(`Search Error: ${e.message}`, { query: raw });
         res.status(500).json({ error: 'Search failed.', detail: e.message });
     }
 });
@@ -148,7 +149,7 @@ app.get('/api/stats', requireApiKey, (req, res) => {
         queryCache.set('stats', response);
         res.json(response);
     } catch (e) {
-        console.error('[Stats Error]', e);
+        logger.error(`Stats Error: ${e.message}`);
         res.status(500).json({ error: 'Stats retrieval failed.', detail: e.message });
     }
 });
@@ -165,7 +166,7 @@ app.get('/api/ai/insights', requireApiKey, (req, res) => {
         queryCache.set('ai_insights', response);
         res.json(response);
     } catch (e) {
-        console.error('[AI Insights Error]', e.message);
+        logger.error(`AI Insights Error: ${e.message}`);
         res.status(500).json({ error: 'Insights retrieval failed.' });
     }
 });
@@ -181,12 +182,12 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
 
 // Global error handler
 app.use((err, _req, res, _next) => {
-    console.error('[Unhandled]', err.message);
+    logger.error(`Unhandled Error: ${err.message}`, { stack: err.stack });
     res.status(500).json({ error: 'Internal server error.' });
 });
 
 const BIND_ADDRESS = process.env.BIND_ADDRESS || '127.0.0.1';
 
 app.listen(PORT, BIND_ADDRESS, () => {
-    console.log(`[*] Secured EtherLens API listening on ${BIND_ADDRESS}:${PORT}`);
+    logger.info(`Secured EtherLens API listening on ${BIND_ADDRESS}:${PORT}`);
 });

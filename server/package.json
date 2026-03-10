@@ -52,10 +52,12 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.0",
+    "geoip-lite": "^2.0.0",
     "helmet": "^8.1.0",
     "ip-range-check": "^0.2.0",
     "lru-cache": "^11.2.6",
-    "natural": "^8.1.1"
+    "natural": "^8.1.1",
+    "winston": "^3.19.0"
   },
   "overrides": {
     "tar": ">=7.5.10",

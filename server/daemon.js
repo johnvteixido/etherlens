@@ -3,6 +3,8 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const crypto = require('crypto');
 const ipRangeCheck = require('ip-range-check');
+const geoip = require('geoip-lite');
+const logger = require('./logger');
 const { classifyBanner } = require('./aiAnalyzer');
 
 // --- DATABASE SETUP ---
@@ -52,8 +54,7 @@ const BOGON_RANGES = [
     '203.0.113.0/24', '224.0.0.0/4', '240.0.0.0/4', '255.255.255.255/32'
 ];
 
-// --- MOCK GEOIP DATA (for demonstration purposes without an external API key) ---
-const COUNTRIES = ['USA', 'UK', 'China', 'Germany', 'Japan', 'Brazil', 'India', 'Canada', 'France', 'Australia'];
+// (Mock GeoIP data removed in favor of geoip-lite)
 
 // --- AUTONOMOUS SCANNER ---
 let activeConnections = 0;
@@ -103,13 +104,14 @@ function scanTarget(ip, port) {
 
         socket.on('end', () => {
             if (banner) {
-                const randomCountry = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+                const geo = geoip.lookup(ip);
+                const country = geo ? geo.country : 'Unknown';
                 const finalBanner = banner.trim();
                 const aiResult = classifyBanner(finalBanner);
 
                 try {
-                    insertHost.run(ip, port, finalBanner, randomCountry, aiResult.category, aiResult.risk);
-                    console.log(`[+] Discovered: ${ip}:${port} (${randomCountry}) | Type: ${aiResult.category} | Risk: ${aiResult.risk}`);
+                    insertHost.run(ip, port, finalBanner, country, aiResult.category, aiResult.risk);
+                    logger.info(`Discovered: ${ip}:${port} (${country}) | Type: ${aiResult.category} | Risk: ${aiResult.risk}`);
                 } catch (e) {
                     // Ignore silent db constraint errors
                 }
@@ -124,7 +126,7 @@ function scanTarget(ip, port) {
 
 // The Daemon Loop
 async function daemonLoop() {
-    console.log('[*] EtherLens Autonomous Daemon Started...');
+    logger.info('EtherLens Autonomous Daemon Started...');
     while (true) {
         if (activeConnections < CONCURRENCY_LIMIT) {
             const ip = generateRandomIP();
